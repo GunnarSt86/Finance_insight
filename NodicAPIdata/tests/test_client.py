@@ -1,5 +1,6 @@
 import pytest
-from pxweb_client import jsonstat_to_frame, comparable_time_series, _codes_for_dimension
+from nordicstats import comparable_time_series, jsonstat_to_frame
+from nordicstats.pxweb_client import _codes_for_dimension
 import pandas as pd
 
 SAMPLE = {
@@ -49,7 +50,7 @@ def test_alignment():
 def test_iceland_post_request_offline():
     import json
     import requests
-    from pxweb_client import IcelandPxWeb
+    from nordicstats import IcelandPxWeb
 
     meta = {"variables": [
         {"code": "Sex", "text": "Sex", "values": ["T", "M"], "valueTexts": ["Total", "Male"]},
@@ -88,7 +89,7 @@ def test_iceland_post_request_offline():
 def test_sweden_get_request_offline():
     import json
     import requests
-    from pxweb_client import SwedenPxWeb
+    from nordicstats import SwedenPxWeb
 
     meta = {"id": ["Region", "Tid"], "role": {"time": ["Tid"]},
             "dimension": {"Region": {"category": {"index": {"00": 0}, "label": {"00": "Sweden"}}},

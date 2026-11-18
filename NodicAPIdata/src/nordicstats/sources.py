@@ -11,7 +11,8 @@ from typing import Literal
 
 import pandas as pd
 
-from pxweb_client import IcelandPxWeb, SwedenPxWeb
+from .pxweb_v1 import IcelandPxWeb
+from .pxweb_v2 import SwedenPxWeb
 
 Family = Literal["pxweb_v1", "pxweb_v2", "statbank_dk", "custom", "eurostat", "sdmx"]
 
@@ -24,25 +25,34 @@ class Source:
     family: Family
     base_url: str
     docs_url: str
-    status: str = "configured"  # configured, special, planned
+    status: str = "unverified"  # working, unverified, special, planned
     note: str = ""
+    verified_on: str | None = None
 
 
 SOURCES: dict[str, Source] = {
     "iceland": Source("iceland", "Statistics Iceland", "Iceland", "pxweb_v1",
         "https://px.hagstofa.is/pxen/api/v1/en",
-        "https://statice.is/publications/open-data-access/"),
+        "https://statice.is/publications/open-data-access/",
+        status="working", verified_on="2026-11-18"),
     "sweden": Source("sweden", "Statistics Sweden (SCB)", "Sweden", "pxweb_v2",
         "https://statistikdatabasen.scb.se/api/v2",
-        "https://www.scb.se/en/services/open-data-api/pxwebapi/"),
+        "https://www.scb.se/en/services/open-data-api/pxwebapi/",
+        status="working",
+        note="SCB documents 150,000 cells per extract and 30 calls per 10 seconds.",
+        verified_on="2026-11-18"),
     "norway": Source("norway", "Statistics Norway (SSB)", "Norway", "pxweb_v2",
         "https://data.ssb.no/api/pxwebapi/v2",
         "https://www.ssb.no/en/api/pxwebapi",
-        note="SSB documents 30 queries/minute and a limit of 800,000 data cells/extract."),
+        status="working",
+        note="SSB documents 30 queries/minute and a limit of 800,000 data cells/extract.",
+        verified_on="2026-11-18"),
     "finland": Source("finland", "Statistics Finland (StatFin)", "Finland", "pxweb_v1",
         "https://pxdata.stat.fi/PxWeb/api/v1/en/StatFin",
         "https://stat.fi/en/services/statistical-data-services/open-data-and-interfaces/interface-use-of-databases",
-        note="Many table paths and variable codes changed on 8 June 2026; always fetch metadata."),
+        status="working",
+        note="Many table paths and variable codes changed on 8 June 2026; always fetch metadata.",
+        verified_on="2026-11-18"),
     "estonia": Source("estonia", "Statistics Estonia", "Estonia", "pxweb_v1",
         "https://andmed.stat.ee/api/v1/en/stat",
         "https://andmed.stat.ee/help/api-manual.pdf",
@@ -74,7 +84,9 @@ SOURCES: dict[str, Source] = {
     "denmark": Source("denmark", "Statistics Denmark (StatBank)", "Denmark", "statbank_dk",
         "https://api.statbank.dk/v1",
         "https://www.dst.dk/en/Statistik/hjaelp-til-statistikbanken/api",
-        note="Separate REST API, but supports JSON-stat; use DenmarkStatbank adapter."),
+        status="working",
+        note="Separate REST API, but supports JSON-stat; use DenmarkStatbank adapter.",
+        verified_on="2026-11-18"),
     "lithuania": Source("lithuania", "Lithuanian Data Portal", "Lithuania", "custom",
         "https://api.dataportal.gov.lt",
         "https://guides.dataportal.gov.lt/docs/api", status="planned"),
@@ -97,8 +109,13 @@ class PxWebV1(IcelandPxWeb):
 
     def fetch(self, table_path, selection, labels=False, max_cells=100_000):
         df = super().fetch(table_path, selection, labels=labels, max_cells=max_cells)
-        df.attrs.update(agency=self.source.name, source_key=self.source.key,
-                        source_url=self._url(table_path))
+        df.attrs.update(
+            agency=self.source.name,
+            source_key=self.source.key,
+            source_name=self.source.name,
+            source_url=self._url(table_path),
+            api_url=self._url(table_path),
+        )
         return df
 
 
@@ -108,10 +125,17 @@ class PxWebV2(SwedenPxWeb):
         super().__init__(base_url=source.base_url, language=language, session=session)
         self.source = source
 
-    def fetch(self, table_id, selection, labels=False):
-        df = super().fetch(table_id, selection, labels=labels)
-        df.attrs.update(agency=self.source.name, source_key=self.source.key,
-                        source_url=f"{self.base_url}/tables/{table_id}/data")
+    def fetch(self, table_id, selection, labels=False, max_cells=100_000):
+        df = super().fetch(
+            table_id, selection, labels=labels, max_cells=max_cells
+        )
+        df.attrs.update(
+            agency=self.source.name,
+            source_key=self.source.key,
+            source_name=self.source.name,
+            source_url=f"{self.base_url}/tables/{table_id}/data",
+            api_url=f"{self.base_url}/tables/{table_id}/data",
+        )
         return df
 
 
@@ -131,7 +155,7 @@ def client_for(key: str, *, language="en", session=None):
     if source.family == "pxweb_v2":
         return PxWebV2(source, language=language, session=session)
     if source.family == "statbank_dk":
-        from denmark_client import DenmarkStatbank
+        from .denmark_client import DenmarkStatbank
         return DenmarkStatbank(base_url=source.base_url, language=language, session=session)
     raise NotImplementedError(
         f"{source.name} is registered but has no adapter yet ({source.family}). "
@@ -141,6 +165,11 @@ def client_for(key: str, *, language="en", session=None):
 
 def sources_dataframe() -> pd.DataFrame:
     return pd.DataFrame([vars(source) for source in SOURCES.values()])
+
+
+def list_sources() -> pd.DataFrame:
+    """Return the configured source registry as a notebook-friendly DataFrame."""
+    return sources_dataframe()
 
 
 if __name__ == "__main__":

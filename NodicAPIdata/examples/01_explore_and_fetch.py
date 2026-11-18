@@ -3,17 +3,15 @@
 This downloads two *example slices*, NOT two harmonized population totals.
 """
 from pathlib import Path
-import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from pxweb_client import IcelandPxWeb, SwedenPxWeb
+import nordicstats as ns
 
 ICELAND_POPULATION = "Ibuar/mannfjoldi/1_yfirlit/Yfirlit_mannfjolda/MAN00101.px"
 SWEDEN_POPULATION = "TAB638"
 
 out = Path("data")
 out.mkdir(exist_ok=True)
-is_api, se_api = IcelandPxWeb(), SwedenPxWeb()
+is_api, se_api = ns.client_for("iceland"), ns.client_for("sweden")
 
 print("\nICELAND: browse population overview")
 print(is_api.browse("Ibuar/mannfjoldi/1_yfirlit/Yfirlit_mannfjolda").head(10).to_string(index=False))

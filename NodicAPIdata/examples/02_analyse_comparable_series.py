@@ -9,12 +9,10 @@ matching measures first. In particular, DO NOT reuse the preview CSVs from
 01_explore_and_fetch.py: those choose arbitrary first-category slices.
 """
 from pathlib import Path
-import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import matplotlib.pyplot as plt
 import pandas as pd
-from pxweb_client import comparable_time_series
+from nordicstats import comparable_time_series
 
 p = Path("data")
 ice_path = p / "iceland_matched.csv"

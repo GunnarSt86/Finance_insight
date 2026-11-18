@@ -1,75 +1,135 @@
-# React + TypeScript + Vite
+# Nordic Statistics API Project
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Python-first project for discovering tables in Nordic official-statistics APIs,
+inspecting their metadata, and retrieving small, explicit selections as tidy
+`pandas.DataFrame` objects.
 
-Currently, two official plugins are available:
+The current milestone is reliable data access from notebooks. Cross-country
+harmonisation, statistical analysis, and the web application come later.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Python setup
 
-## React Compiler
+Python 3.10 or newer is required. From this directory:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev,notebook]'
+python -m pytest -q
+jupyter lab
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+On Windows PowerShell, activate the environment with:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev,notebook]"
 ```
+
+## Notebook-facing API
+
+```python
+import nordicstats as ns
+
+# Inspect the registry without making a network request.
+display(ns.list_sources())
+
+client = ns.client_for("iceland")
+display(client.browse())
+
+# Use a real path discovered through browse().
+table = "TABLE_PATH_FROM_BROWSE"
+display(client.variables(table))
+display(client.value_codes(table, "VARIABLE_CODE_FROM_METADATA"))
+
+# Every dimension must be selected with exact metadata-derived codes.
+selection = {
+    "VARIABLE_CODE_FROM_METADATA": ["VALUE_CODE_FROM_METADATA"],
+}
+df = client.fetch(table, selection)
+display(df.head())
+print(df.attrs)
+```
+
+Do not copy the placeholder table or value codes above into a real query. Browse
+or search first, inspect metadata, and then use the codes returned by the API.
+The attributes include the source, table, API URL, UTC retrieval time, selection,
+and provider metadata. `DataFrame.attrs` is useful in memory but is not retained
+by CSV, so save provenance separately when publishing an extract.
+
+## Provider families
+
+- PxWeb v1: directory browsing, table metadata, and POST data queries. Used by
+  Iceland, Finland, Estonia, Greenland, the Faroe Islands, Åland, and Slovenia.
+- PxWeb v2: table search, metadata, and GET data queries. Currently configured
+  for Sweden, Norway, and Latvia.
+- StatBank Denmark: a separate adapter for the Danish `subjects`, `tables`,
+  `tableinfo`, and `data` operations.
+
+`ns.list_sources()` reports one of four honest states:
+
+- `working`: a small metadata and data request passed on the recorded
+  `verified_on` date.
+- `unverified`: configured from provider documentation but not yet tested live.
+- `special`: requires provider-specific handling before normal use.
+- `planned`: deliberately unavailable during this milestone.
+
+Iceland, Sweden, Norway, Finland, and Denmark were verified end to end on
+18 November 2026 using the small tables in `tests/test_live_smoke.py`. This is a
+connectivity check, not evidence that every table or statistical definition is
+compatible across providers.
+
+Documented provider limits differ. Sweden currently documents 150,000 cells per
+extract and 30 calls per 10 seconds; Norway documents 800,000 cells and 30 calls
+per minute. The client uses a lower local default of 100,000 cells for explicit
+selections where the size can be calculated.
+
+## Tests
+
+Offline tests never require internet access:
+
+```bash
+python -m pytest -q
+```
+
+Live tests are deliberately opt-in and issue a two-period query to each core
+provider:
+
+```bash
+RUN_LIVE_API_TESTS=1 python -m pytest -q -m live
+```
+
+The verified smoke tables are Iceland `MAN00101.px`, Sweden `TAB638`, Norway
+`05810`, Finland `vaerak/11ra.px`, and Denmark `FOLK1C`.
+
+## Repository layout
+
+```text
+src/nordicstats/     installable Python package
+tests/               offline tests plus explicitly marked live smoke tests
+notebooks/           guided exploration notebooks
+examples/            runnable Python examples
+docs/                archived starter documentation and design notes
+data/                generated local data (ignored by Git)
+web/                 React/Vite starter reserved for a later milestone
+```
+
+The original imports (`from pxweb_client import ...`, `from sources import ...`)
+remain available as compatibility modules. New code should use
+`import nordicstats as ns`.
+
+## Frontend
+
+The existing Vite application is intentionally isolated under `web/`. It is not
+part of the API milestone. To check it independently:
+
+```bash
+cd web
+npm install
+npm run lint
+npm run build
+```
+
+See [the archived starter README](docs/STARTER_README.md) and
+[the multi-country notes](docs/MULTICOUNTRY.md) for the earlier implementation
+notes and statistical cautions.

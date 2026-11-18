@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import pathlib
-import sys
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-
 from unittest.mock import Mock
 import pandas as pd
 import pytest
 
-from sources import SOURCES, client_for, PxWebV1, PxWebV2, sources_dataframe
-from denmark_client import DenmarkStatbank
+from nordicstats import SOURCES, DenmarkStatbank, client_for, sources_dataframe
+from nordicstats.sources import PxWebV1, PxWebV2
 
 
 class Response:
@@ -34,6 +29,10 @@ def test_registry_and_factories():
     assert isinstance(client_for("norway", session=Mock()), PxWebV2)
     assert isinstance(client_for("denmark", session=Mock()), DenmarkStatbank)
     assert isinstance(sources_dataframe(), pd.DataFrame)
+    registry = sources_dataframe().set_index("key")
+    assert registry.loc["iceland", "status"] == "working"
+    assert registry.loc["iceland", "verified_on"] == "2026-11-18"
+    assert registry.loc["estonia", "status"] == "unverified"
     with pytest.raises(NotImplementedError):
         client_for("eurostat")
 
@@ -51,6 +50,8 @@ def test_v1_source_attribution():
     assert result["value"].iloc[0] == 123
     assert result.attrs["source_key"] == "finland"
     assert result.attrs["agency"] == "Statistics Finland (StatFin)"
+    assert result.attrs["table_id"] == "table.px"
+    assert result.attrs["retrieved_at_utc"].endswith("+00:00")
 
 
 def test_v2_country_wrapper_metadata_and_search():
@@ -79,6 +80,8 @@ def test_denmark_request_structure_and_jsonstat():
     frame = client.fetch("DEMO", {"TIME": ["2024"], "SEX": ["T"]})
     assert frame["value"].iloc[0] == 8
     assert frame.attrs["source_key"] == "denmark"
+    assert frame.attrs["table_id"] == "DEMO"
+    assert frame.attrs["selection"] == {"TIME": ["2024"], "SEX": ["T"]}
     args, kwargs = session.post.call_args
     assert args[0] == "https://api.statbank.dk/v1/data"
     assert kwargs["json"]["format"] == "JSONSTAT"

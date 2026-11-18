@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nordicstats"
+version = "0.1.0"
+description = "Teaching-oriented Python clients for Nordic official-statistics APIs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0,<3.0",
+    "requests>=2.31,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+]
+notebook = [
+    "jupyterlab>=4,<5",
+    "matplotlib>=3.8,<4",
+    "pyarrow>=15",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["pxweb_client", "sources", "denmark_client"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: tests that call real provider APIs (opt-in only)",
+]
