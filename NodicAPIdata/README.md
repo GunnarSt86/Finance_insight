@@ -57,6 +57,26 @@ The attributes include the source, table, API URL, UTC retrieval time, selection
 and provider metadata. `DataFrame.attrs` is useful in memory but is not retained
 by CSV, so save provenance separately when publishing an extract.
 
+## Searchable table catalogues
+
+PxWeb v2 providers and Denmark expose bounded, normalized table inventories:
+
+```python
+catalog = ns.catalog("sweden", limit=100)
+population = catalog[
+    catalog["title"].str.contains("population", case=False, na=False)
+]
+display(population)
+
+# More efficient: ask a v2 provider to filter on the server.
+population = ns.catalog("sweden", query="population", limit=100)
+```
+
+The stable columns include `source_key`, `country`, `api_family`, `table_id`,
+`title`, update information, and first/last periods where supplied. Iceland and
+Finland use hierarchical PxWeb v1 folders; use `client.browse()` until the
+bounded recursive catalogue walker is implemented.
+
 ## Provider families
 
 - PxWeb v1: directory browsing, table metadata, and POST data queries. Used by

@@ -1,6 +1,7 @@
 """Notebook-friendly access to Nordic official-statistics APIs."""
 
 from .analysis import comparable_time_series
+from .catalog import catalog
 from .denmark_client import DenmarkStatbank
 from .exceptions import APIError, NordicStatsError, ResponseFormatError, SelectionError
 from .jsonstat import jsonstat_to_frame
@@ -18,6 +19,7 @@ __all__ = [
     "ResponseFormatError",
     "SelectionError",
     "SwedenPxWeb",
+    "catalog",
     "client_for",
     "comparable_time_series",
     "jsonstat_to_frame",
