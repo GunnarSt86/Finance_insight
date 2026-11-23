@@ -1,0 +1,94 @@
+{
+  "provider": "Statistics Iceland",
+  "snapshotDate": "19 November 2026",
+  "latestYear": 2025,
+  "population": {
+    "value": 389444, "year": 2025, "table": "MAN00101",
+    "source": "https://px.hagstofa.is/pxen/pxweb/en/Ibuar/Ibuar__mannfjoldi__1_yfirlit__Yfirlit_mannfjolda/MAN00101.px"
+  },
+  "earnings": {
+    "meanMonthlyISK": 1058000, "year": 2025, "table": "VIN02002",
+    "source": "https://px.hagstofa.is/pxen/pxweb/en/Samfelag/Samfelag__launogtekjur__1_laun__1_laun/VIN02002.px"
+  },
+  "education": {
+    "primaryStudentAnnualCostISK": 3356177, "year": 2025, "table": "THJ05636A",
+    "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_fraedsla__1_utgjold_fraedsla/THJ05636A.px"
+  },
+  "assumptions": { "carPriceISK": 8000000 },
+  "publicServices": [
+    {
+      "id": "social-protection", "label": "Social protection", "annualISK": 544869800000,
+      "year": 2025, "table": "THJ05142",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_opinber__fjarmal_opinber/THJ05142.px/",
+      "note": "General government expenditure by function."
+    },
+    {
+      "id": "healthcare", "label": "Public healthcare", "annualISK": 405846000000,
+      "year": 2025, "table": "THJ05511",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_heilbr/THJ05511.px",
+      "note": "Public expenditure on healthcare."
+    },
+    {
+      "id": "education", "label": "Public education", "annualISK": 323924200000,
+      "year": 2025, "table": "THJ05611",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_fraedsla__1_utgjold_fraedsla/THJ05611.px",
+      "note": "Public expenditure on education."
+    },
+    {
+      "id": "culture", "label": "Culture and recreation", "annualISK": 149380500000,
+      "year": 2025, "table": "THJ05142",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_opinber__fjarmal_opinber/THJ05142.px/",
+      "note": "Recreation, culture and religion expenditure."
+    },
+    {
+      "id": "public-order", "label": "Public order and safety", "annualISK": 75940100000,
+      "year": 2025, "table": "THJ05142",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_opinber__fjarmal_opinber/THJ05142.px/",
+      "note": "General government expenditure by function."
+    },
+    {
+      "id": "housing-community", "label": "Housing and community amenities", "annualISK": 26218600000,
+      "year": 2025, "table": "THJ05142",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__fjaropinber__fjarmal_opinber__fjarmal_opinber/THJ05142.px/",
+      "note": "General government expenditure by function."
+    }
+  ],
+  "economicFlows": [
+    {
+      "id": "fish-catch", "label": "Value of Icelandic fish catch", "annualISK": 200642188752,
+      "year": 2025, "table": "SJA02201",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Atvinnuvegir/Atvinnuvegir__sjavarutvegur__aflatolur__afli_verdmaeti/SJA02201.px",
+      "note": "Total reported catch value."
+    },
+    {
+      "id": "household-food", "label": "Household food and drink", "annualISK": 322579000000,
+      "year": 2025, "table": "THJ02103",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__thjodhagsreikningar__einkaneysla/THJ02103.px",
+      "note": "Food and non-alcoholic drinks at current prices."
+    },
+    {
+      "id": "tourism", "label": "Inbound visitor expenditure", "annualISK": 540927000000,
+      "year": 2025, "table": "SAM08000",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__thjodhagsreikningar__ferdathjonustureikningar__ferdathjonustureikningar/SAM08000.px",
+      "note": "Inbound tourism expenditure at current prices."
+    },
+    {
+      "id": "housing-utilities", "label": "Household housing and utilities", "annualISK": 618709000000,
+      "year": 2025, "table": "THJ02103",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__thjodhagsreikningar__einkaneysla/THJ02103.px",
+      "note": "Household consumption at current prices."
+    },
+    {
+      "id": "household-total", "label": "All household consumption", "annualISK": 2439647000000,
+      "year": 2025, "table": "THJ02103",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__thjodhagsreikningar__einkaneysla/THJ02103.px",
+      "note": "Total household consumption at current prices."
+    },
+    {
+      "id": "gdp", "label": "Gross domestic product", "annualISK": 4941211000000,
+      "year": 2025, "table": "THJ01102",
+      "source": "https://px.hagstofa.is/pxen/pxweb/en/Efnahagur/Efnahagur__thjodhagsreikningar__landsframl__1_landsframleidsla/THJ01102.px",
+      "note": "GDP at current prices; preliminary."
+    }
+  ]
+}

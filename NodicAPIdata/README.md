@@ -131,24 +131,41 @@ notebooks/           guided exploration notebooks
 examples/            runnable Python examples
 docs/                archived starter documentation and design notes
 data/                generated local data (ignored by Git)
-web/                 React/Vite starter reserved for a later milestone
+web/                 Local React/Vite Icelandic króna scale prototype
 ```
 
 The original imports (`from pxweb_client import ...`, `from sources import ...`)
 remain available as compatibility modules. New code should use
 `import nordicstats as ns`.
 
-## Frontend
+## Icelandic króna scale prototype
 
-The existing Vite application is intentionally isolated under `web/`. It is not
-part of the API milestone. To check it independently:
+`web/` contains a local-first concept for translating a large ISK amount into
+human, public-service, and national-economic comparisons. Its reference values
+are a dated snapshot of the official tables explored in
+`notebooks/02_isk_scale_explorer.ipynb`; calculations run in the browser.
+
+Start the local development version:
 
 ```bash
 cd web
-npm install
+npm ci
+npm run dev
+```
+
+Vite prints the local address, normally `http://localhost:5173`. The entered
+amount is written to the URL as `?amount=...`, so a particular view can be
+bookmarked or shared. To validate and preview the production build:
+
+```bash
 npm run lint
 npm run build
+npm run preview
 ```
+
+Official statistical inputs, derived comparisons, and editable assumptions are
+labelled separately in the interface. The comparison wording expresses scale;
+it does not claim that a public service can literally be purchased by the day.
 
 See [the archived starter README](docs/STARTER_README.md) and
 [the multi-country notes](docs/MULTICOUNTRY.md) for the earlier implementation
