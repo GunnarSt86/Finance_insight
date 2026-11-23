@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { MetricIcon } from './components/MetricIcon'
 import referenceData from './data/iceland-reference.json'
 import {
   asCompactISK,
@@ -9,6 +10,8 @@ import {
   calculateDays,
   calculateMonths,
 } from './lib/calculations'
+import { copy, interpolate } from './lib/i18n'
+import type { Language } from './lib/i18n'
 import './App.css'
 
 const DEFAULT_AMOUNT = 23_000_000_000
@@ -16,16 +19,25 @@ const PRESETS = [1_000_000_000, DEFAULT_AMOUNT, 100_000_000_000]
 
 type Flow = {
   id: string
-  label: string
   annualISK: number
   source: string
   table: string
-  note: string
+  year?: number
 }
+
+type BadgeKind = 'official' | 'derived' | 'assumption'
 
 function initialAmount() {
   const fromUrl = Number(new URLSearchParams(window.location.search).get('amount'))
   return Number.isFinite(fromUrl) && fromUrl > 0 ? Math.round(fromUrl) : DEFAULT_AMOUNT
+}
+
+function initialLanguage(): Language {
+  const fromUrl = new URLSearchParams(window.location.search).get('lang')
+  if (fromUrl === 'en' || fromUrl === 'is') return fromUrl
+  const saved = window.localStorage.getItem('isk-scale-language')
+  if (saved === 'en' || saved === 'is') return saved
+  return navigator.language.toLowerCase().startsWith('is') ? 'is' : 'en'
 }
 
 function parseISK(value: string) {
@@ -33,17 +45,19 @@ function parseISK(value: string) {
   return digits ? Number(digits) : 0
 }
 
-function Badge({ kind }: { kind: 'official' | 'derived' | 'assumption' }) {
-  return <span className={`badge badge--${kind}`}>{kind}</span>
+function Badge({ kind, language }: { kind: BadgeKind; language: Language }) {
+  return <span className={`badge badge--${kind}`}>{copy[language].badges[kind]}</span>
 }
 
 function ComparisonBar({
+  id,
   label,
   value,
   maximum,
   display,
   tone,
 }: {
+  id: string
   label: string
   value: number
   maximum: number
@@ -55,7 +69,10 @@ function ComparisonBar({
   return (
     <div className="comparison-row">
       <div className="comparison-row__label">
-        <span>{label}</span>
+        <span className="comparison-row__name">
+          <MetricIcon name={id} className="comparison-row__icon" />
+          {label}
+        </span>
         <strong>{display}</strong>
       </div>
       <div className="comparison-row__track" aria-hidden="true">
@@ -69,21 +86,25 @@ function ComparisonBar({
 }
 
 function App() {
+  const [language, setLanguage] = useState<Language>(initialLanguage)
   const [amount, setAmount] = useState(initialAmount)
-  const [inputValue, setInputValue] = useState(() => asISK(initialAmount()))
+  const [inputValue, setInputValue] = useState(() => asISK(initialAmount(), initialLanguage()))
   const [carPrice, setCarPrice] = useState(() => {
     const saved = Number(window.localStorage.getItem('isk-scale-car-price'))
-    return Number.isFinite(saved) && saved > 0
-      ? saved
-      : referenceData.assumptions.carPriceISK
+    return Number.isFinite(saved) && saved > 0 ? saved : referenceData.assumptions.carPriceISK
   })
-  const [copyState, setCopyState] = useState('Copy link')
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const t = copy[language]
 
   useEffect(() => {
     const url = new URL(window.location.href)
     url.searchParams.set('amount', String(amount))
+    url.searchParams.set('lang', language)
     window.history.replaceState({}, '', url)
-  }, [amount])
+    window.localStorage.setItem('isk-scale-language', language)
+    document.documentElement.lang = language
+    document.title = t.pageTitle
+  }, [amount, language, t.pageTitle])
 
   useEffect(() => {
     window.localStorage.setItem('isk-scale-car-price', String(carPrice))
@@ -115,64 +136,87 @@ function App() {
   const studentYears = amount / referenceData.education.primaryStudentAnnualCostISK
   const cars = amount / carPrice
   const gdpDays = calculateDays(amount, gdpAnnualISK)
+  const digitCount = inputValue.replace(/[^0-9]/g, '').length
+  const amountClass = digitCount > 15 ? 'amount-field--very-long' : digitCount > 11 ? 'amount-field--long' : ''
+  const metricLabel = (id: string) => (t.metrics as Record<string, string>)[id] ?? id
+  const dateLocale = language === 'is' ? 'is-IS' : 'en-GB'
+  const snapshotDate = new Intl.DateTimeFormat(dateLocale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${referenceData.snapshotDate}T12:00:00Z`))
 
   function setNewAmount(nextAmount: number) {
     const safeAmount = Math.max(0, Math.round(nextAmount))
     setAmount(safeAmount)
-    setInputValue(asISK(safeAmount))
+    setInputValue(asISK(safeAmount, language))
+  }
+
+  function changeLanguage(nextLanguage: Language) {
+    setLanguage(nextLanguage)
+    setInputValue(asISK(amount, nextLanguage))
   }
 
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href)
-      setCopyState('Link copied')
-      window.setTimeout(() => setCopyState('Copy link'), 1800)
+      setCopyState('copied')
+      window.setTimeout(() => setCopyState('idle'), 1800)
     } catch {
-      setCopyState('Copy failed')
+      setCopyState('failed')
     }
   }
+
+  const copyButton = copyState === 'copied' ? t.linkCopied : copyState === 'failed' ? t.copyFailed : t.copyLink
 
   return (
     <div className="site-shell">
       <header className="topbar">
-        <a className="wordmark" href="#top" aria-label="Krónur in context, home">
+        <a className="wordmark" href="#top" aria-label={t.homeLabel}>
           <span className="wordmark__mark">kr</span>
-          <span>Krónur in context</span>
+          <span>{t.wordmark}</span>
         </a>
-        <button className="quiet-button" type="button" onClick={copyLink}>
-          {copyState}
-        </button>
+        <div className="topbar__actions">
+          <div className="language-toggle" role="group" aria-label={t.languageLabel}>
+            <button type="button" aria-pressed={language === 'is'} onClick={() => changeLanguage('is')}>IS</button>
+            <button type="button" aria-pressed={language === 'en'} onClick={() => changeLanguage('en')}>EN</button>
+          </div>
+          <button className="quiet-button" type="button" onClick={copyLink}>{copyButton}</button>
+        </div>
       </header>
 
       <main id="top">
         <section className="hero-section" aria-labelledby="page-title">
           <div className="hero-copy">
-            <p className="eyebrow">An Icelandic scale explorer</p>
-            <h1 id="page-title">Make a large number feel human.</h1>
-            <p className="hero-copy__intro">
-              Enter an amount from the news and compare it with everyday life,
-              public services and the Icelandic economy.
-            </p>
+            <p className="eyebrow">{t.heroEyebrow}</p>
+            <h1 id="page-title">{t.heroTitle}</h1>
+            <p className="hero-copy__intro">{t.heroIntro}</p>
           </div>
 
           <div className="amount-panel">
-            <label htmlFor="amount">Amount in Icelandic krónur</label>
-            <div className="amount-field">
-              <span aria-hidden="true">kr</span>
+            <label htmlFor="amount">{t.amountLabel}</label>
+            <div className={`amount-field ${amountClass}`}>
+              <MetricIcon name="edit" className="amount-field__edit" />
               <input
                 id="amount"
                 inputMode="numeric"
                 value={inputValue}
+                placeholder={t.amountPlaceholder}
                 onChange={(event) => {
                   setInputValue(event.target.value)
                   setAmount(parseISK(event.target.value))
                 }}
-                onBlur={() => setInputValue(asISK(amount))}
-                aria-describedby="amount-help"
+                onBlur={() => setInputValue(asISK(amount, language))}
+                aria-describedby="amount-callout amount-help"
               />
+              <span className="amount-field__unit" aria-hidden="true">{language === 'is' ? 'kr.' : 'ISK'}</span>
             </div>
-            <p id="amount-help">Spaces, commas and periods are all accepted.</p>
-            <div className="preset-list" aria-label="Example amounts">
+            <p id="amount-callout" className="amount-callout">
+              <MetricIcon name="edit" className="amount-callout__icon" />
+              {t.amountCallout}
+            </p>
+            <p id="amount-help">{t.amountHelp}</p>
+            <div className="preset-list" aria-label={t.presetsLabel}>
               {PRESETS.map((preset) => (
                 <button
                   type="button"
@@ -180,7 +224,7 @@ function App() {
                   className={amount === preset ? 'is-active' : ''}
                   onClick={() => setNewAmount(preset)}
                 >
-                  {asCompactISK(preset)}
+                  {asCompactISK(preset, language)}
                 </button>
               ))}
             </div>
@@ -189,211 +233,143 @@ function App() {
 
         <section className="answer-section" aria-labelledby="answer-title">
           <div className="section-heading section-heading--light">
-            <p className="eyebrow">First, three ways to see it</p>
-            <h2 id="answer-title" aria-live="polite">{asCompactISK(amount)} is equivalent to…</h2>
+            <p className="eyebrow">{t.firstEyebrow}</p>
+            <h2 id="answer-title" aria-live="polite">{asCompactISK(amount, language)} {t.equivalentTo}</h2>
           </div>
           <div className="answer-grid">
             <article className="answer-card answer-card--ice">
-              <div className="answer-card__topline">
-                <span>Shared across Iceland</span>
-                <Badge kind="derived" />
-              </div>
-              <strong>{asISK(perResident)}</strong>
-              <p>for every resident</p>
-              <small>Using the {referenceData.population.year} population of {asCount(referenceData.population.value)}.</small>
+              <div className="answer-card__topline"><span>{t.sharedIceland}</span><Badge kind="derived" language={language} /></div>
+              <MetricIcon name="people" className="answer-card__icon" />
+              <strong>{asISK(perResident, language)}</strong>
+              <p>{t.everyResident}</p>
+              <small>{interpolate(t.populationBasis, { year: referenceData.population.year, value: asCount(referenceData.population.value, language) })}</small>
             </article>
             <article className="answer-card answer-card--blue">
-              <div className="answer-card__topline">
-                <span>Public healthcare</span>
-                <Badge kind="official" />
-              </div>
-              <strong>{asDays(healthDays)}</strong>
-              <p>at the annual-average spending rate</p>
-              <small>Equivalent scale, not a claim that services can literally be purchased by the day.</small>
+              <div className="answer-card__topline"><span>{t.publicHealthcare}</span><Badge kind="official" language={language} /></div>
+              <MetricIcon name="healthcare" className="answer-card__icon" />
+              <strong>{asDays(healthDays, language)}</strong>
+              <p>{t.annualRate}</p>
+              <small>{t.healthcareCaveat}</small>
             </article>
             <article className="answer-card answer-card--moss">
-              <div className="answer-card__topline">
-                <span>Full-time earnings</span>
-                <Badge kind="official" />
-              </div>
-              <strong>{asCount(workerYears)}</strong>
-              <p>worker-years of mean gross earnings</p>
-              <small>Gross earnings are not the full cost of employing someone.</small>
+              <div className="answer-card__topline"><span>{t.fullTimeEarnings}</span><Badge kind="official" language={language} /></div>
+              <MetricIcon name="earnings" className="answer-card__icon" />
+              <strong>{asCount(workerYears, language)}</strong>
+              <p>{t.workerYears}</p>
+              <small>{t.earningsCaveat}</small>
             </article>
           </div>
         </section>
 
         <section className="content-section split-section" aria-labelledby="people-title">
           <div className="section-heading">
-            <p className="eyebrow">Bring it closer</p>
-            <h2 id="people-title">People and everyday scale</h2>
-            <p>Concrete comparisons are memorable, but not all are equally official.</p>
+            <p className="eyebrow">{t.peopleEyebrow}</p>
+            <h2 id="people-title">{t.peopleTitle}</h2>
+            <p>{t.peopleIntro}</p>
           </div>
           <div className="fact-list">
             <article className="fact-row">
               <div>
-                <Badge kind="official" />
-                <h3>{asCount(studentYears)} student-years</h3>
-                <p>Average primary-school operating cost per student in {referenceData.education.year}.</p>
+                <Badge kind="official" language={language} />
+                <h3>{asCount(studentYears, language)} {t.studentYears}</h3>
+                <p>{interpolate(t.studentNote, { year: referenceData.education.year })}</p>
               </div>
-              <span className="fact-row__symbol" aria-hidden="true">01</span>
+              <MetricIcon name="student" className="fact-row__icon" />
             </article>
             <article className="fact-row">
               <div>
-                <Badge kind="assumption" />
-                <h3>{asCount(cars)} cars</h3>
-                <p>Based on the editable example price below—not an official vehicle-price statistic.</p>
+                <Badge kind="assumption" language={language} />
+                <h3>{asCount(cars, language)} {t.cars}</h3>
+                <p>{t.carsNote}</p>
                 <label className="inline-input" htmlFor="car-price">
-                  Assumed car price
+                  {t.carPrice}
                   <span>
-                    <input
-                      id="car-price"
-                      type="number"
-                      min="1"
-                      step="100000"
-                      value={carPrice}
-                      onChange={(event) => setCarPrice(Math.max(1, Number(event.target.value)))}
-                    />
-                    kr
+                    <input id="car-price" type="number" min="1" step="100000" value={carPrice} onChange={(event) => setCarPrice(Math.max(1, Number(event.target.value)))} />
+                    {language === 'is' ? 'kr.' : 'ISK'}
                   </span>
                 </label>
               </div>
-              <span className="fact-row__symbol" aria-hidden="true">02</span>
+              <MetricIcon name="car" className="fact-row__icon" />
             </article>
             <article className="fact-row">
               <div>
-                <Badge kind="derived" />
-                <h3>{asDays(gdpDays)}</h3>
-                <p>Equivalent to this much time in Iceland’s {referenceData.latestYear} GDP.</p>
+                <Badge kind="derived" language={language} />
+                <h3>{asDays(gdpDays, language)}</h3>
+                <p>{interpolate(t.gdpNote, { year: referenceData.latestYear })}</p>
               </div>
-              <span className="fact-row__symbol" aria-hidden="true">03</span>
+              <MetricIcon name="gdp" className="fact-row__icon" />
             </article>
           </div>
         </section>
 
         <section className="content-section chart-section" aria-labelledby="services-title">
           <div className="section-heading">
-            <p className="eyebrow">Public services</p>
-            <h2 id="services-title">How many months of annual spending?</h2>
-            <p>
-              Each bar compares the amount with one year of public expenditure at an
-              annual-average rate. Longer bars represent more months.
-            </p>
+            <p className="eyebrow">{t.servicesEyebrow}</p>
+            <h2 id="services-title">{t.servicesTitle}</h2>
+            <p>{t.servicesIntro}</p>
           </div>
           <div className="bar-card">
             {serviceResults.map((item) => (
-              <ComparisonBar
-                key={item.id}
-                label={item.label}
-                value={item.equivalent}
-                maximum={maxService}
-                display={asMonths(item.equivalent)}
-                tone="blue"
-              />
+              <ComparisonBar key={item.id} id={item.id} label={metricLabel(item.id)} value={item.equivalent} maximum={maxService} display={asMonths(item.equivalent, language)} tone="blue" />
             ))}
           </div>
-          <p className="chart-note">
-            These comparisons express scale. Government programmes do not spend evenly
-            through the year and cannot literally be switched on for a fraction of a month.
-          </p>
+          <p className="chart-note">{t.servicesCaveat}</p>
         </section>
 
         <section className="content-section chart-section chart-section--cool" aria-labelledby="economy-title">
           <div className="section-heading">
-            <p className="eyebrow">The national clock</p>
-            <h2 id="economy-title">How many days of economic activity?</h2>
-            <p>Annual flows translated into time make very different scales easier to compare.</p>
+            <p className="eyebrow">{t.economyEyebrow}</p>
+            <h2 id="economy-title">{t.economyTitle}</h2>
+            <p>{t.economyIntro}</p>
           </div>
           <div className="bar-card bar-card--dark">
             {economyResults.map((item) => (
-              <ComparisonBar
-                key={item.id}
-                label={item.label}
-                value={item.equivalent}
-                maximum={maxEconomy}
-                display={asDays(item.equivalent)}
-                tone="rust"
-              />
+              <ComparisonBar key={item.id} id={item.id} label={metricLabel(item.id)} value={item.equivalent} maximum={maxEconomy} display={asDays(item.equivalent, language)} tone="rust" />
             ))}
           </div>
-          <p className="chart-note chart-note--dark">
-            GDP and consumption are measures of activity, not pools of money available to spend.
-          </p>
+          <p className="chart-note chart-note--dark">{t.economyCaveat}</p>
         </section>
 
         <section className="method-section" aria-labelledby="method-title">
           <div className="section-heading">
-            <p className="eyebrow">Trust the comparison</p>
-            <h2 id="method-title">Sources, method and limits</h2>
-            <p>
-              The website calculates comparisons in your browser from a small snapshot of
-              official {referenceData.provider} data.
-            </p>
+            <p className="eyebrow">{t.methodEyebrow}</p>
+            <h2 id="method-title">{t.methodTitle}</h2>
+            <p>{t.methodIntro}</p>
           </div>
           <div className="method-grid">
             <div className="method-legend">
-              <p><Badge kind="official" /> Input taken from an official statistical table.</p>
-              <p><Badge kind="derived" /> Result calculated from official inputs.</p>
-              <p><Badge kind="assumption" /> A transparent, editable example value.</p>
+              <p><Badge kind="official" language={language} /> {t.officialMeaning}</p>
+              <p><Badge kind="derived" language={language} /> {t.derivedMeaning}</p>
+              <p><Badge kind="assumption" language={language} /> {t.assumptionMeaning}</p>
             </div>
             <div className="source-list">
               <details>
-                <summary>Public-service tables</summary>
+                <summary>{t.serviceTables}</summary>
+                <ul>{referenceData.publicServices.map((item) => <li key={item.id}><a href={item.source} target="_blank" rel="noreferrer">{metricLabel(item.id)}</a><span>{item.table} · {item.year}</span></li>)}</ul>
+              </details>
+              <details>
+                <summary>{t.peopleTables}</summary>
                 <ul>
-                  {referenceData.publicServices.map((item) => (
-                    <li key={item.id}>
-                      <a href={item.source} target="_blank" rel="noreferrer">{item.label}</a>
-                      <span>{item.table} · {item.year}</span>
-                    </li>
-                  ))}
+                  <li><a href={referenceData.population.source} target="_blank" rel="noreferrer">{t.populationLink}</a><span>{referenceData.population.table} · {referenceData.population.year}</span></li>
+                  <li><a href={referenceData.earnings.source} target="_blank" rel="noreferrer">{t.earningsLink}</a><span>{referenceData.earnings.table} · {referenceData.earnings.year}</span></li>
+                  <li><a href={referenceData.education.source} target="_blank" rel="noreferrer">{t.studentLink}</a><span>{referenceData.education.table} · {referenceData.education.year}</span></li>
                 </ul>
               </details>
               <details>
-                <summary>People and earnings tables</summary>
-                <ul>
-                  <li>
-                    <a href={referenceData.population.source} target="_blank" rel="noreferrer">Population of Iceland</a>
-                    <span>{referenceData.population.table} · {referenceData.population.year}</span>
-                  </li>
-                  <li>
-                    <a href={referenceData.earnings.source} target="_blank" rel="noreferrer">Mean full-time earnings</a>
-                    <span>{referenceData.earnings.table} · {referenceData.earnings.year}</span>
-                  </li>
-                  <li>
-                    <a href={referenceData.education.source} target="_blank" rel="noreferrer">Primary student operating cost</a>
-                    <span>{referenceData.education.table} · {referenceData.education.year}</span>
-                  </li>
-                </ul>
+                <summary>{t.economyTables}</summary>
+                <ul>{referenceData.economicFlows.map((item) => <li key={item.id}><a href={item.source} target="_blank" rel="noreferrer">{metricLabel(item.id)}</a><span>{item.table} · {item.year}</span></li>)}</ul>
               </details>
               <details>
-                <summary>Economy and household tables</summary>
-                <ul>
-                  {referenceData.economicFlows.map((item) => (
-                    <li key={item.id}>
-                      <a href={item.source} target="_blank" rel="noreferrer">{item.label}</a>
-                      <span>{item.table} · {item.year}</span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-              <details>
-                <summary>Calculation method</summary>
-                <p>
-                  Days = entered amount ÷ annual value × 365.2425. Months = entered amount
-                  ÷ annual value × 12. Results are rounded for readability while calculations
-                  use the unrounded values.
-                </p>
+                <summary>{t.calculationMethod}</summary>
+                <p>{t.calculationText}</p>
               </details>
             </div>
           </div>
-          <p className="data-date">Reference data snapshot: {referenceData.snapshotDate}. Values for {referenceData.latestYear} may be preliminary or revised.</p>
+          <p className="data-date">{interpolate(t.dataDate, { date: snapshotDate, year: referenceData.latestYear })}</p>
         </section>
       </main>
 
-      <footer>
-        <p>A local prototype for understanding large Icelandic króna amounts.</p>
-        <a href="#top">Back to the amount</a>
-      </footer>
+      <footer><p>{t.footer}</p><a href="#top">{t.back}</a></footer>
     </div>
   )
 }

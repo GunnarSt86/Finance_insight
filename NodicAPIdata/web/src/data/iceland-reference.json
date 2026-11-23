@@ -1,6 +1,6 @@
 {
   "provider": "Statistics Iceland",
-  "snapshotDate": "19 November 2026",
+  "snapshotDate": "2026-11-19",
   "latestYear": 2025,
   "population": {
     "value": 389444, "year": 2025, "table": "MAN00101",

@@ -155,7 +155,8 @@ npm run dev
 
 Vite prints the local address, normally `http://localhost:5173`. The entered
 amount is written to the URL as `?amount=...`, so a particular view can be
-bookmarked or shared. To validate and preview the production build:
+bookmarked or shared. The English/Icelandic selector is also preserved as
+`?lang=en` or `?lang=is`. To validate and preview the production build:
 
 ```bash
 npm run lint
